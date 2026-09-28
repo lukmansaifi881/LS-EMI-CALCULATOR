@@ -11,25 +11,35 @@
   <div class="max-w-md w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-2xl">
     <div class="text-center mb-6">
       <h1 class="text-xl font-bold text-amber-400">कंप्यूटर EMI कैलकुलेटर</h1>
-      <p class="text-xs text-slate-400 mt-1">50% डाउन पेमेंट • 5% प्रति माह ब्याज</p>
+      <p class="text-xs text-slate-400 mt-1">कस्टम डाउन पेमेंट • 5% प्रति माह ब्याज</p>
     </div>
 
     <!-- Inputs -->
     <div class="space-y-4">
       <div>
         <label class="text-xs font-semibold text-slate-300">कंप्यूटर की कुल कीमत (₹)</label>
-        <input type="number" id="totalPrice" value="23000" class="w-full mt-1 p-3 bg-slate-900 border border-slate-700 rounded-xl text-lg font-bold text-emerald-400 focus:outline-none focus:border-amber-400" oninput="calculate()">
+        <input type="number" id="totalPrice" value="23000" class="w-full mt-1 p-3 bg-slate-900 border border-slate-700 rounded-xl text-lg font-bold text-emerald-400 focus:outline-none focus:border-amber-400" oninput="onPriceChange()">
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60">
-          <span class="text-[11px] text-slate-400 block">डाउन पेमेंट (50%)</span>
-          <span class="text-base font-bold text-slate-100" id="downPaymentText">₹11,500</span>
+      <!-- Down Payment Input -->
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="text-xs font-semibold text-slate-300">डाउन पेमेंट (₹)</label>
+          <span class="text-[11px] font-bold text-amber-400" id="dpPercentLabel">50% (अनुशंसित)</span>
         </div>
-        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60">
-          <span class="text-[11px] text-slate-400 block">बाकी लोन (असल)</span>
-          <span class="text-base font-bold text-slate-100" id="loanAmountText">₹11,500</span>
+        <input type="number" id="downPaymentInput" value="11500" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-base font-bold text-slate-100 focus:outline-none focus:border-amber-400" oninput="calculate()">
+        
+        <!-- Quick DP Buttons -->
+        <div class="grid grid-cols-3 gap-2 mt-2">
+          <button type="button" onclick="setDpPercent(50)" class="dp-btn py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30">50% (बेस्ट)</button>
+          <button type="button" onclick="setDpPercent(40)" class="dp-btn py-1.5 rounded-lg text-xs font-semibold bg-slate-700/60 text-slate-300 hover:bg-slate-700">40%</button>
+          <button type="button" onclick="setDpPercent(30)" class="dp-btn py-1.5 rounded-lg text-xs font-semibold bg-slate-700/60 text-slate-300 hover:bg-slate-700">30%</button>
         </div>
+      </div>
+
+      <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex justify-between items-center">
+        <span class="text-xs text-slate-400">बाकी लोन राशि (असल):</span>
+        <span class="text-base font-bold text-rose-400" id="loanAmountText">₹11,500</span>
       </div>
 
       <!-- Month Selector Buttons -->
@@ -51,7 +61,7 @@
       </div>
 
       <div class="flex justify-between text-xs text-slate-400">
-        <span>असल रकम (Principal):</span>
+        <span>बाकी असल (Principal):</span>
         <span class="font-semibold text-slate-200" id="resPrincipal">₹11,500</span>
       </div>
 
@@ -76,6 +86,20 @@
     let selectedMonths = 3;
     const monthlyRate = 0.05; // 5% प्रति माह
 
+    function onPriceChange() {
+      const price = parseFloat(document.getElementById('totalPrice').value) || 0;
+      // कीमत बदलने पर डिफ़ॉल्ट 50% सेट होगा
+      document.getElementById('downPaymentInput').value = Math.round(price * 0.50);
+      calculate();
+    }
+
+    function setDpPercent(percent) {
+      const price = parseFloat(document.getElementById('totalPrice').value) || 0;
+      const dpValue = Math.round(price * (percent / 100));
+      document.getElementById('downPaymentInput').value = dpValue;
+      calculate();
+    }
+
     function setMonths(m) {
       selectedMonths = m;
       document.querySelectorAll('.month-btn').forEach(btn => {
@@ -87,8 +111,16 @@
 
     function calculate() {
       const price = parseFloat(document.getElementById('totalPrice').value) || 0;
-      const downPayment = price * 0.50;
-      const principal = price * 0.50;
+      let downPayment = parseFloat(document.getElementById('downPaymentInput').value) || 0;
+
+      if (downPayment > price) downPayment = price;
+      const principal = Math.max(0, price - downPayment);
+
+      // Percentage label update
+      const percent = price > 0 ? Math.round((downPayment / price) * 100) : 0;
+      const percentLabel = document.getElementById('dpPercentLabel');
+      percentLabel.innerText = `${percent}% ${percent < 50 ? '(ब्याज ज़्यादा लगेगा)' : '(सामान्य)'}`;
+      percentLabel.className = `text-[11px] font-bold ${percent < 50 ? 'text-rose-400' : 'text-amber-400'}`;
 
       // 5% flat per month calculation
       const monthlyInterestAmount = principal * monthlyRate;
@@ -97,9 +129,7 @@
       const emi = selectedMonths > 0 ? (totalRepayment / selectedMonths) : 0;
       const grandTotal = downPayment + totalRepayment;
 
-      document.getElementById('downPaymentText').innerText = '₹' + Math.round(downPayment).toLocaleString('en-IN');
       document.getElementById('loanAmountText').innerText = '₹' + Math.round(principal).toLocaleString('en-IN');
-      
       document.getElementById('monthlyEmi').innerText = '₹' + Math.round(emi).toLocaleString('en-IN');
       document.getElementById('resPrincipal').innerText = '₹' + Math.round(principal).toLocaleString('en-IN');
       document.getElementById('resInterest').innerText = '₹' + Math.round(totalInterest).toLocaleString('en-IN');
